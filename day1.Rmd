@@ -1,0 +1,409 @@
+---
+title: "Spatial Data Science with R. Day 1."
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## What are spatial data?
+
+> - One could argue that all data is spatial, because how can one observe something that is _not_ somewhere?
+
+> - However, only data for which the location of observation is registered, referenced, and of (some) relevance for the information contained is considered _spatial data_
+
+## Overview
+
+* data structures vs. data concepts
+* the software landscape
+* work flows; file formats
+* handling attributes (properties) of geometries, 
+* plotting maps, 
+* measurement units and coordinate reference systems, 
+* spatiotemporal data, raster and vector data cubes
+ 
+## data structures vs. data concepts
+
+* data structures: how we represent data in the computer (or on paper)
+* data concepts: what we mean by these representations
+
+Example data structure: a vector, array, or list
+
+Example data concept: an object, an event, a field or coverage, a trajectory, an administrative division, outcome of an election, a hurricane. We will come back to this.
+
+## Simple features 
+See  https://journal.r-project.org/archive/2018/RJ-2018-009/
+
+Simple features are (a data model for) **things** that have a **geometry** and **properties**.
+
+Simple feature geometry refers to the geometry of a simple feature.
+
+The _simple_ refers to lines (and polygon boundaries) being represented by points connected with straight lines.
+
+For some things, this "thing data model" either works
+
+* **badly**: _continuously_ varying spatial properties, like air temperature
+* **moderately well**: categorical/discrete properties varying continuously over space, such as land use
+
+## The common geometries
+
+* `POINT (0 1)`
+* `MULTIPOINT (0 1,1 1,-1 2)`
+* `LINESTRING (0 0,1 1)`
+* `MULTILINESTRING ((0 0,1 1),(2 2,0 2))`
+* `POLYGON ((0 0,3 0,3 3,0 3,0 0),(1 1,2 1,2 2,1 2,1 1))`
+* `MULTIPOLYGON (((0 0,1 0,1 1,0 1,0 0)),((2 2,3 2,3 3,2 3,2 2)))`
+* `GEOMETRYCOLLECTION(POINT(0 1), LINESTRING(0 0,1 1))`
+* `POINT EMPTY`
+
+These encodings are called _Well-known text_ (WKT)
+
+## Binary encodings for foreign I/O
+
+Well-known binary (WKB):
+```{r echo=TRUE}
+library(sf)
+st_as_binary(st_as_sfc("POINT (0 1)"))[[1]]
+st_as_binary(st_as_sfc("LINESTRING (0 0,1 1)"))[[1]]
+```
+
+-----
+
+WKB:
+
+* I/O but also to GDAL, GEOS and liblwgeom
+* I/O (direct) to databases, 
+* not human readable, but
+* fast, and lossless
+
+## Representation in R (by `sf`):
+```{r echo=TRUE}
+str(st_as_sfc("POINT (0 1)")[[1]])
+str(st_as_sfc("LINESTRING (0 0,1 1,2 2)")[[1]])
+```
+
+* `POINT` is a numeric vector
+* a point set is a `matrix` (1 point per row)
+* a set of anything else is a `list`
+* classes disambiguate identical storage form (e.g. `LINESTRING` and `MULTIPOINT`, or `POLYGON` and `MULTILINESTRING`)
+
+## `sf` class system
+
+* single feature geometry: `sfc`
+```{r}
+class(st_linestring(rbind(c(0,0), c(1,1))))
+```
+* _set_ of single feature geometries: `sfc` (keeps bbox, CRS)
+```{r}
+class(st_sfc(st_point(c(0,1)), st_point(c(5,5)), crs = 4326))
+```
+* _set_ of single features (geom + attributes): `sf`
+```{r}
+class(st_sf(attr = "a", geom = st_sfc(st_point(c(0,1)))))
+```
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("nc1.png")
+```
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("nc2.png")
+```
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("nc3.png")
+```
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("nc4.png")
+```
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("horst.jpg")
+```
+
+## Empty geometries
+
+Empty geometries reflect a missing geometry. E.g.
+```{r echo=TRUE}
+st_intersection(st_point(c(0,1)), st_point(c(2,2)))
+```
+* "there is no geometry for which ..."
+* these are important for _type safety_
+* unclear why they are typed: what makes an empty point different from an empty linestring? 
+
+## Mixes: 1. at the _single_ feature level:
+```{r}
+gc = st_union(st_point(c(0,1)), st_linestring(rbind(c(0,0), c(1,1))))
+gc
+st_sf(attr = "a", geom = st_sfc(gc))
+```
+
+## Mixes: 2. at the feature _set_ level:
+```{r}
+g = st_sfc(st_point(c(0,1)), st_linestring(rbind(c(0,0), c(1,1))))
+st_sf(attr = c("a", "b"), geom = g)
+```
+
+
+## Operations on geometries 
+
+Geometry operations can be:
+
+* **predicates**: return `TRUE` or `FALSE`, e.g. `st_intersects`
+* **measures**: return a measure (value, possibly with unit), e.g. `st_area`
+* **geometry generating** operations, e.g. `st_intersection`
+
+They have an arity:
+
+* *unary*: operates on a single geometry, e.g. `st_area`
+* *binary*: operates on a pair, e.g. `st_overlaps`
+* *n-ary*: operates on a set, e.g. `st_intersection`
+
+Chapter 5 of [Spatial Data Science](https://keen-swartz-3146c4.netlify.com/geommanip.html) details all the combinations.
+
+If this all looks complicated, do compare it to how a GIS works.
+
+
+## the R spatial package landscape: from sp to sf
+
+The "sp stack" (2005-...) : sp, rgdal, rgeos, raster, ... (sp: 550 revdeps)
+
+The sf stack (2016-...): sf, stars, mapview, tmap, gstat, spdep, ... (sf: 150 revdeps)
+
+## sp vs. sf
+
+comparison:
+
+* sf can, sp cannot combine geometry types in a `GEOMETRY`
+* sf can, sp cannot return `GEOMETRYCOLLECTION`
+* sf can, sp cannot handle empty geometries
+* sf can, sp cannot distinguish between `POLYGON` and `MULTIPOLYGON` etc.
+* sp has an ambiguous data model for holes in polygons, sf doesn't
+* sp's `SpatialXxxDataFrame` objects are not `data.frames`, and as a consequence, sp objects do not work well with `tidyverse` commands
+* `geom_sf`: sf has full `ggplot2` support
+
+## moving between sp and sf
+
+```{r}
+geom = st_sfc(st_point(0:1), st_point(1:2), crs = 4326)
+x = st_sf(attr = c("a", "b"), geom = geom)
+library(sp)
+x.sp = as(x, "Spatial") # sf -> sp
+x2 = st_as_sf(x.sp) # and back: sp -> sf
+all.equal(x, x2, check.attributes = FALSE)
+```
+
+* This works for objects that _can_ be converted, and gives an error otherwise.
+* `LINESTRING` and `POLYGON` return as `MULTILINESTRING` and `MULTIPOLYGON` respectively.
+
+## the sf dependency landscape
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("sf_deps.png")
+```
+
+## Exercise  1
+
+* use the dataset found in `system.file("shape/nc.shp", package="sf")`
+* Read this dataset with `sf::st_read` (or `sf::read_sf`)
+* plot the dataset, then plot the second attribute
+* try to manipulate the color scheme and color breaks
+* plot the first 20 features of the dataset
+* create a plot with axes
+* what is the coordinate reference system of the dataset?
+* For the `nc` dataset, compute the area of the polygons with `st_area`
+* compare the areas with the `AREA` field in the dataset; is there a discrepancy?
+* select the polygon that intersects with `POINT (-81.49826 36.4314)`
+* Repeat the above steps (or similar ones) with a dataset of your own
+
+## workflows
+
+Typical workflow:
+
+* read: load data from external files or database
+* compute: carry out computations
+* write: export results (new data "layers", summary statistics, figures)
+
+Recommended:
+
+* put everything in an R script
+* _even better_: also put comments in the R script
+* _much better_: work from R-Markdown files, write executable documents
+
+## workflows without side effects
+
+Avoid side effects (anything _not_ in the script/R Markdown file):
+
+* **NEVER** read .RData file at startup (rstudio option; `R --vanilla`)
+* **NEVER** write .RData at end (rstudio option; `R --vanilla`)
+* do not put side effects options in .Renviron / .Rprofile (I use it for graphics options or user credentials)
+
+## Reproducible workflows
+
+* avoid using `setwd()`, at all times
+* avoid using `rm(ls())` at the start of the script, but assume a clean workspace
+* put all `library(xxx)` statements at the start
+* work in a single directory (+subdirectories if needed)
+* put a .Rproj rstudio project file in the directory
+* zip the directory to share/archive/backup, including the result (html/pdf)
+
+So your colleague (or later self) can:
+
+* open the zip file
+* open the .Rproj file
+* open the .Rmd file, and click `knit`
+
+## `sessionInfo()`
+
+R and R package versions matter. Use
+```
+sessionInfo()
+```
+or 
+```
+devtools::session_info()
+```
+at the end of every .Rmd file so that it is documented which version of everything was used. This may help diagnosing issues later on.
+
+## attributes of geometries 
+
+```{r,echo=FALSE}
+par(mfrow = c(1,2), mar = rep(0,4))
+source("figs/dumpdata.R")
+nc = read_sf(system.file("gpkg/nc.gpkg", package="sf"))
+#a = st_normalize(st_geometry(nc[3,]))
+a = st_geometry(nc[3,])
+plot(a, col = 'yellow')
+bb = st_bbox(a)
+lines(cbind(d$x, d$y), lwd = 2, col = grey(.6))
+legend(bb[1], bb[4], c("limestone", "road"), c('yellow', NA), lwd = c(NA,2))
+plot(a, col = 'orange')
+legend(bb[1], bb[4], "Pop. density: 1.7 / km^2", 'orange')
+lines(cbind(d$x, d$y), lwd = 2, col = grey(.6))
+```
+
+* what is the bedrock type along the grey road?
+* what is the population density along the grey road?
+
+## support of data
+
+* a lot of data is not registered for time _instances_ or spatial _points_, but rather for time _periods_, and/or spatial _areas_, referred to as _support_ of the data
+* one can argue that all observation _must_ refer to periods/areas, because observation takes time and space, but that doesn't help much
+* making the support explicit may help avoid making meaningless analyses
+
+## attribute-geometry relationships
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+nc = read_sf(system.file("gpkg/nc.gpkg", package="sf")) %>%
+		select(CNTY_, BIR74)
+st_agr(nc) = c(CNTY_ = "identity", BIR74 = "aggregate")
+pt = st_as_sfc("POINT (-81.49826 36.4314)", crs = st_crs(nc))
+i = st_intersection(st_sf(geom = pt), nc)
+```
+------
+
+We don't get this warning if none of the attributes is an `aggregate`; we're faking this by
+```{r}
+st_agr(nc) = c(CNTY_ = "identity", BIR74 = "constant")
+i = st_intersection(st_sf(geom = pt), nc)
+```
+
+## plotting maps 
+
+* plotting spatial data: base, `ggplot2::geom_sf`, raster/stars, mapview, tmap
+
+## measurement units and coordinate reference systems 
+
+* attributes: ordinal, nominal, interval, ratio
+* reference sytems: units of measurement, datums, coordinate reference systems, calendars, ontologies, ...
+
+## coordinate transformations 
+
+* `st_crs()` shows, or sets, the coordinate reference system
+* `st_transform()` takes care of these, using PROJ strings or EPSG codes (numbers), e.g.
+
+```{r}
+nc = read_sf(system.file("gpkg/nc.gpkg", package="sf"))
+nc.tr = st_transform(nc, 2264)
+st_crs(nc.tr)
+st_crs(nc.tr)$units
+```
+
+## Raster data
+
+* `sp` has some elementary infrastructure for this (in-memory)
+* `raster` is scalable, and has a large functionality
+* `raster` data model: single raster layers, or a stack of raster layers, possibly time-referenced.
+
+##  spatiotemporal (S/T) data
+
+* some S/T data has _irregular_ space-time locations, typically in case where the time and location are of primary interest (events): earth quakes, floods, lightning, disease cases, deaths, 
+* often, such data is aggregated to counts/frequencies/densities per time period  and by area, either for privacy or for convenience 
+* other data is collected at regular space/time combinations (e.g. sensor data, satellite imagery)
+* `stars`: a package for raster and vector data cubes, was developed to handle this second case (time instances/periods are identical for all spatial locations/areas)
+* a common action is _change_ of spatial/temporal resolution (interpolation/downsampling/aggregation)
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("figs/cube1.png")
+```
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("figs/cube2.png")
+```
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("figs/cube3.png")
+```
+
+-------
+
+```{r, out.width = "800px", echo=FALSE}
+knitr::include_graphics("figs/cube4.png")
+```
+
+## Data concepts
+
+Data are composed of discrete entities ("numbers, bits")
+
+"Real life" is 
+
+* partly discrete (person, house)
+* partly less discrete (mountain, flood)
+* partly continuous (elevation, air temperature)
+
+S. Scheider, B. Graeler, E. Pebesma, C. Stasch,
+2016.  Modelling spatio-temporal information
+generation. Int J of Geographic Information Science,
+30 (10), 1980-2008 
+https://dx.doi.org/10.1080/13658816.2016.1151520 (open access) 
+
+## Data concepts (2)
+
+Higher-level concepts:
+
+* Reference systems: Space $S$, Time $T$, Discrete $D$, Quality $Q$
+* Region $R$, Period $P$
+* Object, event $D \Rightarrow (S,T) \Rightarrow Q$ (marked point pattern)
+* Field, Coverage: $S \Rightarrow Q$, $(S,T) \Rightarrow Q$
+* Trajectory: $T \Rightarrow S \Rightarrow Q$
+* Aggregation: $(R,P) \Rightarrow Q$
+
+The concept of a _function_ is largely absent in GIS or data base representations, and neither is that of aggregations
