@@ -214,7 +214,7 @@ all.equal(x, x2, check.attributes = FALSE)
 knitr::include_graphics("sf_deps.png")
 ```
 
-## Exercise  1
+## Exercise  (1)
 
 * use the dataset found in `system.file("shape/nc.shp", package="sf")`
 * Read this dataset with `sf::st_read` (or `sf::read_sf`)
@@ -344,8 +344,49 @@ st_crs(nc.tr)$units
 ## Raster data
 
 * `sp` has some elementary infrastructure for this (in-memory)
-* `raster` is scalable, and has a large functionality
-* `raster` data model: single raster layers, or a stack of raster layers, possibly time-referenced.
+* package `raster` is scalable, solid, and has a large functionality
+* `raster` data model: single raster layers, or a stack of raster layers, possibly time-referenced (max: 3-D).
+* package `stars` tries to break out of this limitation, and covers raster _and_ vector data cubes
+* a challenge is always out-of-core computation (data on disk); generic implementation that is still performant is difficult
+* e.g. doing time series analysis on NetCDF files series, with one time instance per NetCDF file
+
+raster grid types
+----
+
+```{r echo=FALSE}
+suppressPackageStartupMessages(library(stars))
+x = 1:5
+y = 1:4
+d = st_dimensions(x = x, y = y, .raster = c("x", "y"))
+m = matrix(runif(20),5,4)
+r1 = st_as_stars(r = m, dimensions = d)
+
+r = attr(d, "raster")
+r$affine = c(0.2, -0.2)
+attr(d, "raster") = r
+r2 = st_as_stars(r = m, dimensions = d)
+
+r = attr(d, "raster")
+r$affine = c(0.1, -0.3)
+attr(d, "raster") = r
+r3 = st_as_stars(r = m, dimensions = d)
+
+x = c(1, 2, 3.5, 5, 6)
+y = c(1, 1.5, 3, 3.5)
+d = st_dimensions(x = x, y = y, .raster = c("x", "y"))
+r4 = st_as_stars(r = m, dimensions = d)
+
+grd = st_make_grid(cellsize = c(10,10), offset = c(-130,10), n= c(8,5), crs=st_crs(4326))
+r5 = st_transform(grd, "+proj=laea +lon_0=-70 +lat_0=35")
+
+par(mfrow = c(2,3))
+r1 = st_make_grid(cellsize = c(1,1), n = c(5,4), offset = c(0,0))
+plot(r1, main = "regular")
+plot(st_geometry(st_as_sf(r2)), main = "rotated")
+plot(st_geometry(st_as_sf(r3)), main = "sheared")
+plot(st_geometry(st_as_sf(r4, as_points = FALSE)), main = "rectilinear")
+plot(st_geometry((r5)), main = "curvilinear")
+```
 
 ##  spatiotemporal (S/T) data
 
@@ -406,4 +447,16 @@ Higher-level concepts:
 * Trajectory: $T \Rightarrow S \Rightarrow Q$
 * Aggregation: $(R,P) \Rightarrow Q$
 
-The concept of a _function_ is largely absent in GIS or data base representations, and neither is that of aggregations
+The concept of a _function_ ($\Rightarrow$) is largely absent in GIS or data base representations, and neither is that of aggregations as a type.
+
+## Exercises (2)
+
+* Read the file `system.file("tif/L7_ETMs.tif", package = "stars")` with `stars::read_stars`
+* print the dataset, and describe what it contains
+* plot the dataset; how are the color breaks chosen?
+* find the maximum pixel value for each of the bands (`st_apply`)
+* find and plot the maximum reflectance over all bands for all pixels
+* find and plot the mean reflectance over all bands for all pixels
+* plot the subset of these data with the first 10 rows, the second 10 colums, and the last 3 bands
+* use `st_crop` to crop the dataset to the area 300 m around `POINT (293749.5 9115745)`
+* is this cropped dataset still a (rectangular) raster?
