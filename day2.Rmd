@@ -102,22 +102,33 @@ or other aggregations of the form
 $$\frac{1}{|A|}\int_A g(Z(u))du$$
 which could, for instance, estimate the fraction of an area for which a certain threshold is exceeded, if $g(\cdot)$ is an indicator function.
 
+## Change of support (2)
+
 The integrals are usually approximated by a weighted or unweighted sum; the linear average is obtained by _block kriging_, the non-linear by
 
 1. _stochastic_ simulation of $Z$ at the point support, 
 2. then applying $g()$, 
 3. then spatially aggregating 
 
-## spatial correlation: (semi)variogram, auto-covariogram, auto-correllogram 
+## Estimating spatial correlation
 
-* exporartory data analysis: distance distributions, the h-scatterplot
-* computing and modelling variograms
-* kriging prediction
-* regression models with stationary residuals
+Spatial correlation is estimated from sample data, by
 
-----
+* forming (all $n(n-1)/2$) pairs $Z(x_i), Z(x_j)$
+* computing distances $h=|x_i-x_j|$
 
-* multivariable geostatistics: co-kriging
-* modelling non-stationary processes: transformation, stratification
-* spatiotemporal geostatistics
-* machine learning approaches to spatial prediction
+## exporartory data analysis: distance distributions, the h-scatterplot
+
+## computing and modelling variograms
+
+## kriging prediction
+
+## regression models with stationary residuals
+
+## multivariable geostatistics: co-kriging
+
+## modelling non-stationary processes: transformation, stratification
+
+## spatiotemporal geostatistics
+
+## machine learning approaches to spatial prediction

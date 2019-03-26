@@ -1,0 +1,103 @@
+---
+title: "Answers to exercises"
+---
+
+## Exercise  1
+
+* use the dataset found in `system.file("shape/nc.shp", package="sf")`
+* Read this dataset with `sf::st_read` (or `sf::read_sf`)
+
+```{r}
+library(sf)
+nc = read_sf(system.file("shape/nc.shp", package="sf"))
+```
+
+* plot the dataset, then plot the second attribute
+```{r}
+plot(nc)
+plot(nc[,2])
+# or, e.g. 
+# library(tidyverse)
+# nc %>% select(2) %>% plot
+```
+
+* try to manipulate the color scheme and color breaks
+
+```{r}
+plot(nc[,2], pal = viridis::viridis) # note that this is a function, not a set of colors
+plot(nc[,2], nbreaks = 5, pal = viridis::viridis)  # note that we don't get exactly 5, because of "pretty" style
+```
+
+* plot the first 20 features of the dataset
+
+```{r}
+plot(nc[1:20,2])
+```
+
+* create a plot with axes
+
+```{r}
+plot(nc[1:20,2], axes = TRUE)
+```
+
+* what is the coordinate reference system of the dataset?
+
+```{r}
+st_crs(nc)
+```
+
+* For the `nc` dataset, compute the area of the polygons with `st_area`
+* compare the areas with the `AREA` field in the dataset; is there a discrepancy?
+```{r}
+a = st_area(nc)
+plot(a, nc$AREA)
+```
+
+* select the polygon that intersects with `POINT (-81.49826 36.4314)`
+```{r}
+pt = st_as_sfc("POINT (-81.49826 36.4314)", crs = st_crs(nc))
+nc[pt,]
+```
+
+## Exercises (2)
+
+* Read the file `system.file("tif/L7_ETMs.tif", package = "stars")` with `stars::read_stars`
+* print the dataset, and describe what it contains
+* plot the dataset; how are the color breaks chosen?
+```{r}
+library(stars)
+r = read_stars(system.file("tif/L7_ETMs.tif", package = "stars"))
+r
+plot(r)
+```
+
+The color breaks are chosen by the default method for `breaks`, which is "quantile"; this
+means that (regularly chosen) quantiles of the pixel values are chosen; this means that the
+map shows equal amounts of each color.
+
+* find the maximum pixel value for each of the bands (`st_apply`)
+
+```{r}
+st_apply(r, 3, max)
+```
+* find and plot the maximum reflectance over all bands for all pixels
+```{r}
+plot(st_apply(r, 1:2, max))
+```
+* find and plot the mean reflectance over all bands for all pixels
+```{r}
+plot(st_apply(r, 1:2, mean))
+```
+* plot the subset of these data with the first 10 rows, the second 10 colums, and the last 3 bands
+```{r}
+r[,1:10, 11:20, 4:6]
+```
+* use `st_crop` to crop the dataset to the area 300 m around `POINT (293749.5 9115745)`
+```{r}
+pt = st_as_sfc("POINT (293749.5 9115745)", crs = st_crs(r))
+cr = st_crop(r, st_buffer(pt, units::set_units(300, m)))
+plot(cr)
+```
+* is this cropped dataset still a (rectangular) raster?
+	
+yes: the values outside the circle are simply set to `NA`, and are not plotted.
