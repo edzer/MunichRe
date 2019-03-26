@@ -346,7 +346,7 @@ a.ci
 ```
 
 ------
-C.I. for the _areal fraction_ of _point_ values over a state where PM10 > 25
+C.I. for the _areal fraction_ of _point_ values over a state where PM10 > 25 (non-linear spatial aggregation)
 ```{r}
 plot(aperm(a.ci, 2:1))
 ```
