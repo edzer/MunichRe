@@ -178,8 +178,9 @@ i = idw(PM10~1, s1, grd)
 v = variogram(PM10~1, s1)
 f = fit.variogram(v, vgm(20, "Lin", 0, 4))
 kr = krige(PM10~1, s1, grd, f)
-range(i[[1]])
-range(kr[[1]])
+range(i[["var1.pred"]])
+range(kr[["var1.pred"]])
+range(s1$PM10)
 ```
 Kriging smoothes much more, mostly because the variogram model used (here) has a considerable relative nugget (nugget component as fraction of the total variance)
 
@@ -237,3 +238,28 @@ var(s1$PM10)
 mean(variogram(PM10~1, s1, cloud=TRUE)$gamma)
 mean(variogram(PM10~1, s1, cloud=TRUE, cutoff = 1e6)$gamma)
 ```
+
+## Exercises 5
+
+* Carry out a block kriging, setting `block=c(10000,10000)` to estimate 10 km x 10 km block mean values
+* Compare the kriged values to those obtained by point kriging, compare the ranges
+* Compare the standard errors between point and block kriging
+
+```{r}
+f = fit.variogram(v, vgm(20, "Lin", 0, 4))
+kr = krige(PM10~1, s1, grd, f) # point kriging
+bl = krige(PM10~1, s1, grd, f, block = c(10000, 10000)) # block kriging
+kr$point = kr$var1.pred
+kr$block = bl$var1.pred
+plot(kr[c("point", "block")])
+kr$point.se = sqrt(kr$var1.var)
+kr$block.se = sqrt(bl$var1.var)
+plot(kr[c("point.se", "block.se")])
+range(kr$point)
+range(kr$block)
+range(kr$point.se)
+range(kr$block.se)
+```
+
+
+
