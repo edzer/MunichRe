@@ -52,6 +52,8 @@ Spatial prediction (Kriging) is concerned with predicting unobserved values $Z(x
 $$\hat{Z}(x_0) = \sum_{i=1}^n \lambda_i Z(x_i)$$
 where weights are chosen such that $E(\hat{Z}(x_0)) = E(Z(x_0))$ and $Var(\hat{Z}(x_0)-Z(x_0))$ is minimal.
 
+----
+
 This is meaningful for point patterns only if there is a missing value, i.e. if $x_0$ has a tree for which we don't know the tree diameter. For field variables, such as air temperature, we have missing values pretty much _everywhere_, and thus can estimate $Z(x)$ over a continuous _surface_.
 
 ## Stationarity, ergodicity

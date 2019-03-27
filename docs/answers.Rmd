@@ -101,3 +101,58 @@ plot(cr)
 * is this cropped dataset still a (rectangular) raster?
 	
 yes: the values outside the circle are simply set to `NA`, and are not plotted.
+
+## Exercise 3
+
+```{r}
+data(DE_RB_2005, package = "gstat")
+library(spacetime)
+library(stars)
+s = st_as_stars(as(DE_RB_2005, "STFDF"))
+# select a single day, omit NA values:
+s1 = na.omit(st_as_sf(s[,,100]))
+names(s1)[1] = "PM10"
+library(gstat)
+variogram(PM10~1, s1)
+plot(variogram(PM10~1, s1))
+```
+
+Building on the above dataset, create out plot where:
+
+* setting the `cutoff` to a much larger, and a much smaller value
+
+```{r}
+plot(variogram(PM10~1, s1, cutoff = 1e5))
+```
+
+* setting the `width` argument to a larger and smaller value
+
+```{r}
+plot(variogram(PM10~1, s1, width =  10000, cutoff = 5e5))
+plot(variogram(PM10~1, s1, width = 100000, cutoff = 5e5))
+```
+
+* the number of point pairs involved is also shown in the plot
+
+```{r}
+plot(variogram(PM10~1, s1, width = 100000, cutoff = 5e5, plot.numbers = TRUE))
+```
+
+* setting `cloud=TRUE` - what do the points in this plot represent? (hint: plot the number of point pairs)
+
+```{r}
+plot(variogram(PM10~1, s1, cutoff = 5e5, cloud = TRUE)) # width ignored
+```
+
+* Save a variogram you like to an object, and fit a model to it using `fit.variogram`; use `vgm()` to list the possible models and `show.vgms()` to get an idea how they look.
+
+```{r}
+v = variogram(PM10~1, s1)
+init = vgm(20, "Sph", 300000, 5)
+f = fit.variogram(v, init)
+plot(v, f)
+```
+
+* If you get errors on fit, don't worry: 
+    * plot the variogram with fitted model (like: `plot(v, fit)`, and examine how it looks
+	* try to choose better initial values for nugget (offset), sill (final level), range (distance where correlation no longer increases)
