@@ -269,10 +269,10 @@ kr = krige(PM10~1, s1, grd, f) # point kriging
 bl = krige(PM10~1, s1, grd, f, block = c(10000, 10000)) # block kriging
 kr$point = kr$var1.pred
 kr$block = bl$var1.pred
-plot(kr[c("point", "block")])
+plot(merge(kr[c("point", "block")]))
 kr$point.se = sqrt(kr$var1.var)
 kr$block.se = sqrt(bl$var1.var)
-plot(kr[c("point.se", "block.se")])
+plot(merge(kr[c("point.se", "block.se")]))
 range(kr$point)
 range(kr$block)
 range(kr$point.se)
