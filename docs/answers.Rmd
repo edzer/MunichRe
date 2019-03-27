@@ -156,3 +156,84 @@ plot(v, f)
 * If you get errors on fit, don't worry: 
     * plot the variogram with fitted model (like: `plot(v, fit)`, and examine how it looks
 	* try to choose better initial values for nugget (offset), sill (final level), range (distance where correlation no longer increases)
+
+
+## Exercises 4
+
+Compare the ranges of the kriging and idw map, and the range of the PM10 data. Explain differences and correspondences.
+
+```{r}
+# load German boundaries
+data(air, package = "spacetime")
+de <- st_transform(st_as_sf(DE_NUTS1), 32632)
+bb = st_bbox(de)
+dx = seq(bb[1], bb[3], 10000)
+dy = seq(bb[4], bb[2], -10000) # decreases!
+st_as_stars(matrix(0., length(dx), length(dy))) %>%
+  st_set_dimensions(1, dx) %>%
+  st_set_dimensions(2, dy) %>%
+  st_set_crs(32632) -> grd
+
+i = idw(PM10~1, s1, grd)
+v = variogram(PM10~1, s1)
+f = fit.variogram(v, vgm(20, "Lin", 0, 4))
+kr = krige(PM10~1, s1, grd, f)
+range(i[[1]])
+range(kr[[1]])
+```
+Kriging smoothes much more, mostly because the variogram model used (here) has a considerable relative nugget (nugget component as fraction of the total variance)
+
+Examine the kriging variance error map.
+
+```{r}
+plot(kr[2])
+```
+
+Compute a standard error map by taking the square root of the kriging variance
+
+```{r}
+kr$stderr = sqrt(kr$var1.var)
+```
+
+Plot this map with the data points overlayed: can you explain the pattern in the errors?
+
+
+```{r}
+plot(kr["stderr"], reset = FALSE)
+plot(st_geometry(de), add = TRUE, col = NA, border = 'red')
+plot(s1, add = TRUE, col = 'green', pch = 3)
+```
+
+Repeat the exercise with the same linear model but with a zero nugget effect, and compare the ranges again.
+
+```{r}
+# brute-force: setting the nugget to zero:
+f$psill[1] = 0
+# somewhat "nicer": fitting the same model, but without a nugget:
+f = fit.variogram(v, vgm(20, "Lin", 0))
+kr0 = krige(PM10~1, s1, grd, f)
+range(kr0[[1]])
+```
+
+Repeat the exercise with the a spherical model with a short range and zero nugget, and compare the ranges again.
+
+```{r}
+# use a short range spherical model, range 100 km, zero nugget:
+f = vgm(20, "Sph", 100000)
+kr.sph = krige(PM10~1, s1, grd, f)
+range(kr.sph[[1]])
+```
+
+Repeat the exercise with the a pure nugget effect model (e.g., vgm(20, "Nug", 0)), and compare the ranges again.
+
+```{r}
+# fit a pure nugget model:
+(f = fit.variogram(v, vgm(1, "Nug", 0)))
+kr.nug = krige(PM10~1, s1, grd, f)
+range(kr.nug[["var1.pred"]])
+mean(s1$PM10)
+range(kr.nug[["var1.var"]])
+var(s1$PM10)
+mean(variogram(PM10~1, s1, cloud=TRUE)$gamma)
+mean(variogram(PM10~1, s1, cloud=TRUE, cutoff = 1e6)$gamma)
+```
