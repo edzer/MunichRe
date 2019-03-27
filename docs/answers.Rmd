@@ -239,6 +239,24 @@ mean(variogram(PM10~1, s1, cloud=TRUE)$gamma)
 mean(variogram(PM10~1, s1, cloud=TRUE, cutoff = 1e6)$gamma)
 ```
 
+Compute (approximate) 95% prediction intervals by adding +/- 2 standard errors to the kriging
+
+
+```{r}
+kr$stderr = sqrt(kr$var1.var)
+kr$upper = kr$var1.pred + 2 * kr$stderr
+kr$lower = kr$var1.pred - 2 * kr$stderr
+plot(merge(kr[c("lower", "upper")]))
+```
+
+Create a map with locations where the threshold of 25 has been exceeded, or might have been exceeded (is inside the prediction interval)
+
+
+```{r}
+kr$classify = ifelse(kr$lower > 25, 1, ifelse(kr$upper < 25, 3, 2))
+plot(kr["classify"]) # legend 1: above 25, 2: ?, 3: below 25
+```
+
 ## Exercises 5
 
 * Carry out a block kriging, setting `block=c(10000,10000)` to estimate 10 km x 10 km block mean values
